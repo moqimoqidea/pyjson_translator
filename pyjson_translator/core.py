@@ -227,10 +227,14 @@ def deserialize_value(value: any,
         return model_instance
     if expected_type and hasattr(expected_type, '__dict__'):
         pyjson_translator_logging.info(f"Deserializing using __dict__ for: {expected_type.__name__}")
-        instance = expected_type()
-        for k, v in value.items():
-            setattr(instance, k, deserialize_value(v))
-        return instance
+        constructor_params = expected_type.__init__.__code__.co_varnames[
+                             1:expected_type.__init__.__code__.co_argcount]
+        if all(param in value for param in constructor_params):
+            return expected_type(**{param: value[param] for param in constructor_params})
+        else:
+            missing_params = [param for param in constructor_params if param not in value]
+            fail_to_translator(f"Missing required parameters for initializing "
+                               f"'{exception_class.__name__}': {', '.join(missing_params)}")
     if expected_type and callable(getattr(expected_type, 'to_dict', None)):
         pyjson_translator_logging.info(f"Deserializing using custom method to_dict for: {expected_type.__name__}")
         return expected_type.to_dict(value)
