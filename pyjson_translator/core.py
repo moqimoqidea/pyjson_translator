@@ -16,7 +16,6 @@ GLOBAL_DB_SCHEMA_CACHE = {}
 
 def generate_db_schema(input_class_instance: any,
                        db_sqlalchemy_merge: bool = False):
-    global GLOBAL_DB_SCHEMA_CACHE
     input_db_class = input_class_instance.__class__
 
     if input_db_class in GLOBAL_DB_SCHEMA_CACHE:
@@ -32,12 +31,11 @@ def generate_db_schema(input_class_instance: any,
         if relation.uselist:
             nested_db_schema = get_nested_schema(relation)
             if nested_db_schema:
-                # noinspection PyTypeChecker
                 schema_fields[attr_name] = fields.Nested(nested_db_schema, many=True)
 
     class Meta:
         model = input_db_class
-        load_instance = True if db_sqlalchemy_merge else False
+        load_instance = db_sqlalchemy_merge
 
     schema_class = type(f"{input_db_class.__name__}Schema", (SQLAlchemyAutoSchema,),
                         {"Meta": Meta, **schema_fields})
@@ -49,8 +47,7 @@ def generate_db_schema(input_class_instance: any,
 def orm_class_to_dict(instance: any,
                       db_sqlalchemy_merge: bool = False):
     schema = generate_db_schema(instance, db_sqlalchemy_merge)()
-    schema_value = schema.dump(instance)
-    return schema_value
+    return schema.dump(instance)
 
 
 def orm_class_from_dict(cls: type,
@@ -78,22 +75,16 @@ def with_prepare_func_json_data(func):
 def with_post_func_data(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # 调用原始函数并捕获返回值
         result = func(*args, **kwargs)
-
-        # 获取函数的返回注解类型
         sig = inspect.signature(func)
         return_type = sig.return_annotation
 
-        # 检查返回值是否是单一值还是多值（例如在使用多返回值的函数）
         if return_type is not inspect.Signature.empty and isinstance(return_type, tuple):
-            # 处理多返回值的序列化和反序列化
             serialized_results = tuple(serialize_value(val) for val in result)
             deserialized_results = tuple(deserialize_value(val, get_real_return_type(typ))
                                          for val, typ in zip(serialized_results, return_type))
             return deserialized_results
         elif return_type is not inspect.Signature.empty:
-            # 处理单一返回值的序列化和反序列化
             serialized_result = serialize_value(result)
             return deserialize_value(serialized_result, get_real_return_type(return_type))
         else:
@@ -106,16 +97,14 @@ def get_real_return_type(return_type: type,
                          db_sqlalchemy_instance: SQLAlchemy = db):
     if return_type in (int, float, str, bool, bytes, complex):
         return return_type
-    elif get_origin(return_type) in (list, tuple, set, dict):
-        return get_origin(return_type)
-    elif get_origin(return_type) is Union:
+    origin = get_origin(return_type)
+    if origin in (list, tuple, set, dict):
+        return origin
+    if origin is Union:
         return get_real_return_type(get_args(return_type)[0])
-    elif issubclass(return_type, BaseModel):
+    if issubclass(return_type, BaseModel) or issubclass(return_type, db_sqlalchemy_instance.Model):
         return return_type
-    elif issubclass(return_type, db_sqlalchemy_instance.Model):
-        return return_type
-    else:
-        fail_to_translator(f"Unhandled real return type {type(return_type).__name__}")
+    fail_to_translator(f"Unhandled real return type {type(return_type).__name__}")
 
 
 def prepare_json_data(func, args, kwargs):
@@ -149,51 +138,50 @@ def serialize_value(value: any,
     if value is None:
         pyjson_translator_logging.info("Serializing None value.")
         return value
-    elif isinstance(value, (int, float, str, bool)):
+    if isinstance(value, (int, float, str, bool)):
         pyjson_translator_logging.info(f"Serializing primitive type: {value}")
         return value
-    elif isinstance(value, bytes):
+    if isinstance(value, bytes):
         encoded_bytes = base64.b64encode(value).decode('utf-8')
         pyjson_translator_logging.info(f"Serializing bytes: {encoded_bytes}")
         return encoded_bytes
-    elif isinstance(value, complex):
+    if isinstance(value, complex):
         complex_dict = {"real": value.real, "imaginary": value.imag}
         pyjson_translator_logging.info(f"Serializing complex number to dict: {complex_dict}")
         return complex_dict
-    elif isinstance(value, list) or isinstance(value, tuple):
+    if isinstance(value, (list, tuple)):
         pyjson_translator_logging.info(f"Serializing list or tuple: {value}")
         return [serialize_value(item) for item in value]
-    elif isinstance(value, set):
+    if isinstance(value, set):
         pyjson_translator_logging.info(f"Serializing set: {value}")
-        return [serialize_value(item) for item in value]  # Convert set to list
-    elif isinstance(value, dict):
+        return [serialize_value(item) for item in value]
+    if isinstance(value, dict):
         pyjson_translator_logging.info(f"Serializing dictionary. Keys: {value.keys()}")
         return {serialize_value(k): serialize_value(v) for k, v in value.items()}
-    elif isinstance(value, db_sqlalchemy_instance.Model):
+    if isinstance(value, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Serializing database model: {type(value).__name__}")
         serialized_model = orm_class_to_dict(value, db_sqlalchemy_merge)
         pyjson_translator_logging.info(f"Serialized db.Model to dict: {serialized_model}")
         return serialized_model
-    elif isinstance(value, BaseModel):
+    if isinstance(value, BaseModel):
         pyjson_translator_logging.info(f"Serializing pydantic BaseModel: {type(value).__name__}")
         model_dict = value.model_dump()
         pyjson_translator_logging.info(f"Serialized BaseModel to dict: {model_dict}")
         return model_dict
-    elif hasattr(value, '__dict__'):
+    if hasattr(value, '__dict__'):
         pyjson_translator_logging.info(f"Serializing using __dict__ for: {type(value).__name__}")
         return {k: serialize_value(v) for k, v in value.__dict__.items()}
-    elif callable(getattr(value, 'to_dict', None)):
+    if callable(getattr(value, 'to_dict', None)):
         pyjson_translator_logging.info(f"Serializing using custom method to_dict for: {type(value).__name__}")
         return value.to_dict()
-    elif callable(getattr(value, 'dict', None)):
+    if callable(getattr(value, 'dict', None)):
         pyjson_translator_logging.info(f"Serializing using custom method dict for: {type(value).__name__}")
         return value.dict()
-    elif get_origin(value) is Optional:
-        pyjson_translator_logging.info(f"Encountered an Optional type, "
-                                       f"deeper serialization might be required for: {value}")
-        return serialize_value(value)  # Recursive call for content inside Optional
-    else:
-        fail_to_translator(f"Unhandled serialize type {type(value).__name__}")
+    if get_origin(value) is Optional:
+        pyjson_translator_logging.info(
+            f"Encountered an Optional type, deeper serialization might be required for: {value}")
+        return serialize_value(value)
+    fail_to_translator(f"Unhandled serialize type {type(value).__name__}")
 
 
 def deserialize_value(value: any,
@@ -203,53 +191,49 @@ def deserialize_value(value: any,
     if value is None:
         pyjson_translator_logging.info("Deserializing None value.")
         return value
-    elif expected_type in (int, float, str, bool):
+    if expected_type in (int, float, str, bool):
         pyjson_translator_logging.info(f"Deserializing primitive type: {value}")
         return expected_type(value)
-    elif expected_type == bytes:
+    if expected_type == bytes:
         decoded_bytes = base64.b64decode(value.encode('utf-8'))
         pyjson_translator_logging.info(f"Deserialized bytes: {decoded_bytes}")
         return decoded_bytes
-    elif expected_type == complex:
+    if expected_type == complex:
         complex_value = complex(value['real'], value['imaginary'])
         pyjson_translator_logging.info(f"Deserialized complex number from dict: {complex_value}")
         return complex_value
-    elif expected_type == list or expected_type == tuple:
+    if expected_type in (list, tuple):
         pyjson_translator_logging.info(f"Deserializing list or tuple: {value}")
         return [deserialize_value(item, type(item)) for item in value]
-    elif expected_type == set:
+    if expected_type == set:
         pyjson_translator_logging.info(f"Deserializing set: {value}")
         return set(deserialize_value(item, type(item)) for item in value)
-    elif expected_type == dict:
+    if expected_type == dict:
         pyjson_translator_logging.info(f"Deserializing dictionary. Keys: {value.keys()}")
         return {deserialize_value(k, type(k)): deserialize_value(v, type(v)) for k, v in value.items()}
-    elif expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
+    if expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Deserializing database model: {expected_type.__name__}")
         model_instance = orm_class_from_dict(expected_type, value, db_sqlalchemy_instance, db_sqlalchemy_merge)
         pyjson_translator_logging.info(f"Deserialized db.Model to instance: {model_instance}")
         return model_instance
-    elif expected_type and issubclass(expected_type, BaseModel):
+    if expected_type and issubclass(expected_type, BaseModel):
         pyjson_translator_logging.info(f"Deserializing pydantic BaseModel: {expected_type.__name__}")
         model_instance = expected_type.model_validate(value)
         pyjson_translator_logging.info(f"Deserialized BaseModel to instance: {model_instance}")
         return model_instance
-    elif expected_type and hasattr(expected_type, '__dict__'):
+    if expected_type and hasattr(expected_type, '__dict__'):
         pyjson_translator_logging.info(f"Deserializing using __dict__ for: {expected_type.__name__}")
-        instance = expected_type.__new__(expected_type)
+        instance = expected_type()
         for k, v in value.items():
             setattr(instance, k, deserialize_value(v))
         return instance
-    elif expected_type and callable(getattr(expected_type, 'to_dict', None)):
+    if expected_type and callable(getattr(expected_type, 'to_dict', None)):
         pyjson_translator_logging.info(f"Deserializing using custom method to_dict for: {expected_type.__name__}")
-        instance = expected_type.to_dict(value)
-        return instance
-    elif expected_type and callable(getattr(expected_type, 'dict', None)):
+        return expected_type.to_dict(value)
+    if expected_type and callable(getattr(expected_type, 'dict', None)):
         pyjson_translator_logging.info(f"Deserializing using custom method dict for: {expected_type.__name__}")
-        instance = expected_type.dict(value)
-        return instance
-    else:
-        fail_to_translator(f"Unhandled deserialize type "
-                           f"{expected_type.__name__ if expected_type else 'unknown'}")
+        return expected_type.dict(value)
+    fail_to_translator(f"Unhandled deserialize type {expected_type.__name__ if expected_type else 'unknown'}")
 
 
 def fail_to_translator(pyjson_translator_fail_message: str):

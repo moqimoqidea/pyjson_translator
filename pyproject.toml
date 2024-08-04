@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyjson_translator"
-version = "0.1.16"
+version = "0.1.17"
 description = "A simple JSON to Python object translator"
 authors = ["moqimoqidea <moqimoqidea@gmail.com>"]
 homepage = "https://github.com/moqimoqidea/pyjson_translator"
