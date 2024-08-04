@@ -8,14 +8,8 @@ from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from pydantic import BaseModel
 
-from .logger_setting import pyjson_translator_logging
-
-db = SQLAlchemy()
-
-
-def init_app(app):
-    db.init_app(app)
-
+from db_sqlalchemy_instance import default_sqlalchemy_instance as db
+from logger_setting import pyjson_translator_logging
 
 GLOBAL_DB_SCHEMA_CACHE = {}
 
@@ -100,7 +94,7 @@ def prepare_json_data(func, args, kwargs):
     return json_data
 
 
-def serialize_value(value):
+def serialize_value(value, db_sqlalchemy_instance: SQLAlchemy = db):
     if value is None:
         pyjson_translator_logging.info("Serializing None value.")
         return value
@@ -124,7 +118,7 @@ def serialize_value(value):
     elif isinstance(value, dict):
         pyjson_translator_logging.info(f"Serializing dictionary. Keys: {value.keys()}")
         return {serialize_value(k): serialize_value(v) for k, v in value.items()}
-    elif isinstance(value, db.Model):
+    elif isinstance(value, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Serializing database model: {type(value).__name__}")
         serialized_model = orm_class_to_dict(value)
         pyjson_translator_logging.info(f"Serialized db.Model to dict: {serialized_model}")
@@ -153,7 +147,7 @@ def serialize_value(value):
         raise ValueError(pyjson_translator_fail_message)
 
 
-def deserialize_value(value, expected_type=None):
+def deserialize_value(value, expected_type=None, db_sqlalchemy_instance: SQLAlchemy = db):
     if value is None:
         pyjson_translator_logging.info("Deserializing None value.")
         return value
@@ -177,7 +171,7 @@ def deserialize_value(value, expected_type=None):
     elif expected_type == dict:
         pyjson_translator_logging.info(f"Deserializing dictionary. Keys: {value.keys()}")
         return {deserialize_value(k, type(k)): deserialize_value(v, type(v)) for k, v in value.items()}
-    elif expected_type and issubclass(expected_type, db.Model):
+    elif expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Deserializing database model: {expected_type.__name__}")
         model_instance = orm_class_from_dict(expected_type, value)
         pyjson_translator_logging.info(f"Deserialized db.Model to instance: {model_instance}")
