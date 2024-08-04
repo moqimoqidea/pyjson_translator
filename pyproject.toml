@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pyjson_translator"
+version = "0.1.11"
+description = "A simple JSON to Python object translator"
+authors = ["moqimoqidea <moqimoqidea@gmail.com>"]
+homepage = "https://github.com/moqimoqidea/pyjson_translator"
+repository = "https://github.com/moqimoqidea/pyjson_translator"
+documentation = "https://github.com/moqimoqidea/pyjson_translator#readme"
+keywords = ["json", "translator", "python"]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+flask_sqlalchemy = "^3.1.1"
+marshmallow = "^3.21.3"
+marshmallow_sqlalchemy = "^1.0.0"
+pydantic = "^2.8.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
