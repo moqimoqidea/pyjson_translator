@@ -22,4 +22,9 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.10',
+    project_urls={
+        'Documentation': 'https://github.com/moqimoqidea/pyjson_translator#readme',
+        'Source': 'https://github.com/moqimoqidea/pyjson_translator',
+        'Tracker': 'https://github.com/moqimoqidea/pyjson_translator/issues',
+    },
 )
