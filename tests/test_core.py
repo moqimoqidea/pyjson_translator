@@ -50,6 +50,11 @@ class DemoService:
 
     @with_prepare_func_json_data
     @with_post_func_data
+    def get_max_wrong_type(self, a: int, b: str) -> int:
+        return ExampleModel(id=1, name="Example", active=True)
+
+    @with_prepare_func_json_data
+    @with_post_func_data
     def single(self, model: ExampleModel) -> ExampleModel:
         return model
 
@@ -99,6 +104,12 @@ def test_basic_type():
     # Test serializing and deserializing a basic type
     max_value = demo_service.get_max(1, 2)
     pyjson_translator_logging.info(f"Serialized and deserialized max value is: {max_value}")
+
+
+def test_basic_wrong_type():
+    # Test serializing and deserializing a basic wrong type
+    max_value = demo_service.get_max_wrong_type(1.3, 2.6)
+    pyjson_translator_logging.info(f"Serialized and deserialized wrong type max value is: {max_value}")
 
 
 def test_complex_type():
@@ -183,6 +194,7 @@ def test_nested_simple_type():
 
 if __name__ == '__main__':
     test_basic_type()
+    test_basic_wrong_type()
     test_complex_type()
     test_pydantic_type()
     test_pydantic_list_type()

@@ -76,8 +76,10 @@ def with_post_func_data(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
-        sig = inspect.signature(func)
-        return_type = sig.return_annotation
+        return_type = type(result)
+
+        if result is None:
+            return result
 
         if return_type is not inspect.Signature.empty and isinstance(return_type, tuple):
             serialized_results = tuple(serialize_value(val) for val in result)
@@ -96,6 +98,8 @@ def with_post_func_data(func):
 def get_real_return_type(return_type: type,
                          db_sqlalchemy_instance: SQLAlchemy = db):
     if return_type in (int, float, str, bool, bytes, complex):
+        return return_type
+    if return_type in (list, tuple, set, dict):
         return return_type
     origin = get_origin(return_type)
     if origin in (list, tuple, set, dict):
@@ -238,4 +242,10 @@ def deserialize_value(value: any,
 
 def fail_to_translator(pyjson_translator_fail_message: str):
     pyjson_translator_logging.warning(pyjson_translator_fail_message)
-    raise ValueError(pyjson_translator_fail_message)
+    raise PyjsonTranslatorException(pyjson_translator_fail_message)
+
+
+class PyjsonTranslatorException(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
