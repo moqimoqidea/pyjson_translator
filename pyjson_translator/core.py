@@ -108,6 +108,8 @@ def get_real_return_type(return_type: type,
         return get_real_return_type(get_args(return_type)[0])
     if issubclass(return_type, BaseModel) or issubclass(return_type, db_sqlalchemy_instance.Model):
         return return_type
+    if hasattr(return_type, '__dict__'):
+        return return_type
     fail_to_translator(f"Unhandled real return type {type(return_type).__name__}")
 
 
