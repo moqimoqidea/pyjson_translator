@@ -336,3 +336,4 @@ if __name__ == '__main__':
     test_db_type()
     test_optional_type()
     test_nested_type()
+    # for test 0.1.12
