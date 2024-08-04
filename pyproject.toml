@@ -1,12 +1,13 @@
 [tool.poetry]
 name = "pyjson_translator"
-version = "0.1.12"
+version = "0.1.13"
 description = "A simple JSON to Python object translator"
 authors = ["moqimoqidea <moqimoqidea@gmail.com>"]
 homepage = "https://github.com/moqimoqidea/pyjson_translator"
 repository = "https://github.com/moqimoqidea/pyjson_translator"
 documentation = "https://github.com/moqimoqidea/pyjson_translator#readme"
 keywords = ["json", "translator", "python"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10"
