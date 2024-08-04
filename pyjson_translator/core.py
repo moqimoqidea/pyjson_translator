@@ -1,7 +1,7 @@
 import base64
 import functools
 import inspect
-from typing import Optional, get_origin
+from typing import Optional, get_origin, get_args, Union
 
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import fields
@@ -14,7 +14,7 @@ from .logger_setting import pyjson_translator_logging
 GLOBAL_DB_SCHEMA_CACHE = {}
 
 
-def generate_db_schema(input_class_instance,
+def generate_db_schema(input_class_instance: any,
                        db_sqlalchemy_merge: bool = False):
     global GLOBAL_DB_SCHEMA_CACHE
     input_db_class = input_class_instance.__class__
@@ -46,15 +46,15 @@ def generate_db_schema(input_class_instance,
     return schema_class
 
 
-def orm_class_to_dict(instance,
+def orm_class_to_dict(instance: any,
                       db_sqlalchemy_merge: bool = False):
     schema = generate_db_schema(instance, db_sqlalchemy_merge)()
     schema_value = schema.dump(instance)
     return schema_value
 
 
-def orm_class_from_dict(cls,
-                        data,
+def orm_class_from_dict(cls: type,
+                        data: any,
                         db_sqlalchemy_instance: SQLAlchemy = db,
                         db_sqlalchemy_merge: bool = False):
     schema = generate_db_schema(cls(), db_sqlalchemy_merge)()
@@ -73,6 +73,49 @@ def with_prepare_func_json_data(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def with_post_func_data(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # 调用原始函数并捕获返回值
+        result = func(*args, **kwargs)
+
+        # 获取函数的返回注解类型
+        sig = inspect.signature(func)
+        return_type = sig.return_annotation
+
+        # 检查返回值是否是单一值还是多值（例如在使用多返回值的函数）
+        if return_type is not inspect.Signature.empty and isinstance(return_type, tuple):
+            # 处理多返回值的序列化和反序列化
+            serialized_results = tuple(serialize_value(val) for val in result)
+            deserialized_results = tuple(deserialize_value(val, get_real_return_type(typ))
+                                         for val, typ in zip(serialized_results, return_type))
+            return deserialized_results
+        elif return_type is not inspect.Signature.empty:
+            # 处理单一返回值的序列化和反序列化
+            serialized_result = serialize_value(result)
+            return deserialize_value(serialized_result, get_real_return_type(return_type))
+        else:
+            fail_to_translator(f"Unhandled real post_func type {type(return_type).__name__}")
+
+    return wrapper
+
+
+def get_real_return_type(return_type: type,
+                         db_sqlalchemy_instance: SQLAlchemy = db):
+    if return_type in (int, float, str, bool, bytes, complex):
+        return return_type
+    elif get_origin(return_type) in (list, tuple, set, dict):
+        return get_origin(return_type)
+    elif get_origin(return_type) is Union:
+        return get_real_return_type(get_args(return_type)[0])
+    elif issubclass(return_type, BaseModel):
+        return return_type
+    elif issubclass(return_type, db_sqlalchemy_instance.Model):
+        return return_type
+    else:
+        fail_to_translator(f"Unhandled real return type {type(return_type).__name__}")
 
 
 def prepare_json_data(func, args, kwargs):
@@ -100,7 +143,7 @@ def prepare_json_data(func, args, kwargs):
     return json_data
 
 
-def serialize_value(value,
+def serialize_value(value: any,
                     db_sqlalchemy_instance: SQLAlchemy = db,
                     db_sqlalchemy_merge: bool = False):
     if value is None:
@@ -150,13 +193,11 @@ def serialize_value(value,
                                        f"deeper serialization might be required for: {value}")
         return serialize_value(value)  # Recursive call for content inside Optional
     else:
-        pyjson_translator_fail_message = f"Unhandled serialize type {type(value).__name__}"
-        pyjson_translator_logging.warning(pyjson_translator_fail_message)
-        raise ValueError(pyjson_translator_fail_message)
+        fail_to_translator(f"Unhandled serialize type {type(value).__name__}")
 
 
-def deserialize_value(value,
-                      expected_type=None,
+def deserialize_value(value: any,
+                      expected_type: type = None,
                       db_sqlalchemy_instance: SQLAlchemy = db,
                       db_sqlalchemy_merge: bool = False):
     if value is None:
@@ -207,7 +248,10 @@ def deserialize_value(value,
         instance = expected_type.dict(value)
         return instance
     else:
-        pyjson_translator_fail_message = (f"Unhandled deserialize type "
-                                          f"{expected_type.__name__ if expected_type else 'unknown'}")
-        pyjson_translator_logging.warning(pyjson_translator_fail_message)
-        raise ValueError(pyjson_translator_fail_message)
+        fail_to_translator(f"Unhandled deserialize type "
+                           f"{expected_type.__name__ if expected_type else 'unknown'}")
+
+
+def fail_to_translator(pyjson_translator_fail_message: str):
+    pyjson_translator_logging.warning(pyjson_translator_fail_message)
+    raise ValueError(pyjson_translator_fail_message)
