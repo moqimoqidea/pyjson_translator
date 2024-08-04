@@ -8,8 +8,8 @@ from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from pydantic import BaseModel
 
-from db_sqlalchemy_instance import default_sqlalchemy_instance as db
-from logger_setting import pyjson_translator_logging
+from .db_sqlalchemy_instance import default_sqlalchemy_instance as db
+from .logger_setting import pyjson_translator_logging
 
 GLOBAL_DB_SCHEMA_CACHE = {}
 
@@ -215,22 +215,24 @@ class SimpleModel:
         self.active = active
 
 
-class Address(db.Model):
-    __tablename__ = 'addresses'
+class TranslatorAddress(db.Model):
+    __tablename__ = 'translator_addresses'
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     street = db.Column(db.String(100))
     city = db.Column(db.String(50))
     state = db.Column(db.String(20))
     zip = db.Column(db.String(10))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('translator_users.id'), nullable=False)
 
 
-class User(db.Model):
-    __tablename__ = 'users'
+class TranslatorUser(db.Model):
+    __tablename__ = 'translator_users'
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True)
     email = db.Column(db.String(120), unique=True)
-    address = db.relationship("Address", backref="user", lazy='select', passive_deletes="all")
+    address = db.relationship("TranslatorAddress", backref="translator_users", lazy='select', passive_deletes="all")
 
 
 class DemoService:
@@ -254,12 +256,12 @@ class DemoService:
         return "Data processed"
 
     @with_prepare_func_json_data
-    def db_model(self, user: User):
+    def db_model(self, user: TranslatorUser):
         pyjson_translator_logging.info(f"Database model user received: {user}")
         return "Data processed"
 
     @with_prepare_func_json_data
-    def optional_db_model(self, optional_user: Optional[User]):
+    def optional_db_model(self, optional_user: Optional[TranslatorUser]):
         pyjson_translator_logging.info(f"Database model optional_user received: {optional_user}")
         return "Data processed"
 
@@ -307,14 +309,14 @@ def test_simple_list_type():
 
 
 def test_db_type():
-    address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1, )
-    user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
+    address_instance = TranslatorAddress(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1, )
+    user_instance = TranslatorUser(id=1, username="john_doe", email="john@example.com", address=[address_instance])
     pyjson_translator_logging.info(demo_service.db_model(user_instance))
 
 
 def test_optional_type():
-    address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1, )
-    user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
+    address_instance = TranslatorAddress(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1, )
+    user_instance = TranslatorUser(id=1, username="john_doe", email="john@example.com", address=[address_instance])
     pyjson_translator_logging.info(demo_service.optional_db_model(user_instance))
     pyjson_translator_logging.info(demo_service.optional_db_model(None))
 
