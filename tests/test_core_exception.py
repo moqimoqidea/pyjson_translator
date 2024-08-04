@@ -53,6 +53,8 @@ class DemoService:
         # noinspection PyArgumentList
         return exception_class(message=message)
 
+    @with_prepare_func_json_data
+    @with_post_func_data
     def dict_and_path_to_exception(self, data: dict, exception_path: str) -> DemoException:
         module_path, _, class_name = exception_path.rpartition('.')
         if not module_path:
