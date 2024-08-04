@@ -75,6 +75,14 @@ class DemoService:
 
     @with_prepare_func_json_data
     @with_post_func_data
+    def double_optional_db_model(self, optional_user: Optional[User]) -> (int, Optional[User]):
+        if optional_user is None:
+            return 0, None
+        else:
+            return 1, optional_user
+
+    @with_prepare_func_json_data
+    @with_post_func_data
     def list_nested_model(self, model_list: list[dict[int, ExampleModel]]) -> list[dict[int, ExampleModel]]:
         return model_list
 
@@ -147,6 +155,16 @@ def test_optional_type():
     pyjson_translator_logging.info(f"Serialized and deserialized None value is: {received_none}")
 
 
+def test_double_optional_type():
+    # Test serializing and deserializing a double optional database model
+    address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
+    user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
+    received_user = demo_service.double_optional_db_model(user_instance)
+    pyjson_translator_logging.info(f"Serialized and deserialized double optional database model is: {received_user}")
+    received_none = demo_service.double_optional_db_model(None)
+    pyjson_translator_logging.info(f"Serialized and deserialized None value is: {received_none}")
+
+
 def test_nested_type():
     # Test serializing and deserializing nested models
     example_model = ExampleModel(id=1, name="Example", active=True)
@@ -171,5 +189,6 @@ if __name__ == '__main__':
     test_simple_list_type()
     test_db_type()
     test_optional_type()
+    test_double_optional_type()
     test_nested_type()
     test_nested_simple_type()
