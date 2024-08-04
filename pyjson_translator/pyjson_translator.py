@@ -8,7 +8,7 @@ from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from pydantic import BaseModel
 
-from logger_setting import pyjson_translator_logging
+from .logger_setting import pyjson_translator_logging
 
 db = SQLAlchemy()
 
