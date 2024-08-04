@@ -1,3 +1,5 @@
+import importlib
+
 from pyjson_translator.core import (
     with_prepare_func_json_data,
     with_post_func_data
@@ -29,6 +31,28 @@ class DemoService:
         # noinspection PyArgumentList
         return exception_class(message=message)
 
+    @with_prepare_func_json_data
+    @with_post_func_data
+    def str_and_path_to_exception(self, message: str, exception_path: str) -> DemoException:
+        module_path, _, class_name = exception_path.rpartition('.')
+        if not module_path:
+            raise ValueError("You must provide the full path to the exception class, including the module.")
+
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError as e:
+            raise ImportError(f"Module {module_path} could not be loaded: {str(e)}")
+
+        exception_class = getattr(module, class_name, None)
+        if exception_class is None:
+            raise ValueError(f"No exception class found with the name: {class_name} in module {module_path}")
+
+        if not issubclass(exception_class, Exception):
+            raise TypeError(f"{class_name} is not a subclass of Exception")
+
+        # noinspection PyArgumentList
+        return exception_class(message=message)
+
 
 demo_service = DemoService()
 
@@ -41,4 +65,10 @@ def test_double_exception():
 def test_str_to_exception():
     message = "An error occurred"
     exception = demo_service.str_to_exception(message, "DemoException")
+    assert exception.message == message
+
+
+def test_str_and_path_to_exception():
+    message = "An error occurred"
+    exception = demo_service.str_and_path_to_exception(message, "tests.test_core_exception.DemoException")
     assert exception.message == message
