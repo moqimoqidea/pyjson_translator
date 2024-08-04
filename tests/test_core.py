@@ -8,7 +8,6 @@ from pyjson_translator.core import (
     with_post_func_data
 )
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
-from pyjson_translator.logger_setting import pyjson_translator_logging
 
 
 class ExampleModel(BaseModel):
@@ -101,106 +100,69 @@ demo_service = DemoService()
 
 
 def test_basic_type():
-    # Test serializing and deserializing a basic type
-    max_value = demo_service.get_max(1, 2)
-    pyjson_translator_logging.info(f"Serialized and deserialized max value is: {max_value}")
+    demo_service.get_max(1, 2)
 
 
 def test_basic_wrong_type():
-    # Test serializing and deserializing a basic wrong type
-    max_value = demo_service.get_max_wrong_type(1.3, 2.6)
-    pyjson_translator_logging.info(f"Serialized and deserialized wrong type max value is: {max_value}")
+    demo_service.get_max_wrong_type(1.3, 2.6)
 
 
 def test_complex_type():
-    # Test serializing and deserializing complex data types
     example_bytes = b"hello world"
     example_complex = 3 + 4j
     example_set = {1, 2, 3}
     example_tuple = (1, 2, 3)
 
-    pyjson_translator_logging.info(serialize_value(example_bytes))  # Base64 encoded string
-    pyjson_translator_logging.info(serialize_value(example_complex))  # JSON object with real and imaginary parts
-    pyjson_translator_logging.info(serialize_value(example_set))  # JSON array
-    pyjson_translator_logging.info(serialize_value(example_tuple))  # JSON array
+    serialize_value(example_bytes)
+    serialize_value(example_complex)
+    serialize_value(example_set)
+    serialize_value(example_tuple)
 
 
 def test_pydantic_type():
-    # Test serializing and deserializing a Pydantic model
     example_model = ExampleModel(id=1, name="Example", active=True)
-    received_model = demo_service.single(example_model)
-    pyjson_translator_logging.info(f"Serialized and deserialized Pydantic model is: {received_model}")
+    demo_service.single(example_model)
 
 
 def test_pydantic_list_type():
-    # Test serializing and deserializing a list of Pydantic models
     example_model = ExampleModel(id=1, name="Example", active=True)
     example_model2 = ExampleModel(id=2, name="Example", active=True)
-    received_list = demo_service.list_model([example_model, example_model2])
-    pyjson_translator_logging.info(f"Serialized and deserialized list of Pydantic models is: {received_list}")
+    demo_service.list_model([example_model, example_model2])
 
 
 def test_simple_list_type():
-    # Test serializing and deserializing a list of simple models
     example_model = SimpleModel(simple_id=1, name="Example", active=True)
     example_model2 = SimpleModel(simple_id=2, name="Example", active=True)
-    received_list = demo_service.list_simple_model([example_model, example_model2])
-    pyjson_translator_logging.info(f"Serialized and deserialized list of simple models is: {received_list}")
+    demo_service.list_simple_model([example_model, example_model2])
 
 
 def test_db_type():
-    # Test serializing and deserializing a database model
     address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
     user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
-    received_user = demo_service.db_model(user_instance)
-    pyjson_translator_logging.info(f"Serialized and deserialized database model is: {received_user}")
+    demo_service.db_model(user_instance)
 
 
 def test_optional_type():
-    # Test serializing and deserializing an optional database model
     address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
     user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
-    received_user = demo_service.optional_db_model(user_instance)
-    pyjson_translator_logging.info(f"Serialized and deserialized optional database model is: {received_user}")
-    received_none = demo_service.optional_db_model(None)
-    pyjson_translator_logging.info(f"Serialized and deserialized None value is: {received_none}")
+    demo_service.optional_db_model(user_instance)
+    demo_service.optional_db_model(None)
 
 
 def test_double_optional_type():
-    # Test serializing and deserializing a double optional database model
     address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
     user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
-    received_user = demo_service.double_optional_db_model(user_instance)
-    pyjson_translator_logging.info(f"Serialized and deserialized double optional database model is: {received_user}")
-    received_none = demo_service.double_optional_db_model(None)
-    pyjson_translator_logging.info(f"Serialized and deserialized None value is: {received_none}")
+    demo_service.double_optional_db_model(user_instance)
+    demo_service.double_optional_db_model(None)
 
 
 def test_nested_type():
-    # Test serializing and deserializing nested models
     example_model = ExampleModel(id=1, name="Example", active=True)
     example_model2 = ExampleModel(id=2, name="Example", active=True)
-    received_list = demo_service.list_nested_model([{1: example_model, 2: example_model2}])
-    pyjson_translator_logging.info(f"Serialized and deserialized list of nested models is: {received_list}")
+    demo_service.list_nested_model([{1: example_model, 2: example_model2}])
 
 
 def test_nested_simple_type():
-    # Test serializing and deserializing nested models
     example_model = SimpleModel(simple_id=1, name="Example", active=True)
     example_model2 = SimpleModel(simple_id=2, name="Example", active=True)
-    received_list = demo_service.list_nested_simple_model([{1: example_model, 2: example_model2}])
-    pyjson_translator_logging.info(f"Serialized and deserialized list of nested simple models is: {received_list}")
-
-
-if __name__ == '__main__':
-    test_basic_type()
-    test_basic_wrong_type()
-    test_complex_type()
-    test_pydantic_type()
-    test_pydantic_list_type()
-    test_simple_list_type()
-    test_db_type()
-    test_optional_type()
-    test_double_optional_type()
-    test_nested_type()
-    test_nested_simple_type()
+    demo_service.list_nested_simple_model([{1: example_model, 2: example_model2}])
