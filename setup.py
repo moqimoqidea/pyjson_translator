@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyjson_translator',
-    version='0.1.7',
+    version='0.1.8',
     description='A simple JSON to Python object translator',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
