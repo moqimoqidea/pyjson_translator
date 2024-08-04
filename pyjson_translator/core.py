@@ -14,7 +14,8 @@ from .logger_setting import pyjson_translator_logging
 GLOBAL_DB_SCHEMA_CACHE = {}
 
 
-def generate_db_schema(input_class_instance):
+def generate_db_schema(input_class_instance,
+                       db_sqlalchemy_merge: bool = False):
     global GLOBAL_DB_SCHEMA_CACHE
     input_db_class = input_class_instance.__class__
 
@@ -24,7 +25,7 @@ def generate_db_schema(input_class_instance):
     def get_nested_schema(relation_class_instance):
         related_model = relation_class_instance.mapper.entity
         related_instance = related_model()
-        return generate_db_schema(related_instance)
+        return generate_db_schema(related_instance, db_sqlalchemy_merge)
 
     schema_fields = {}
     for attr_name, relation in input_db_class.__mapper__.relationships.items():
@@ -34,10 +35,9 @@ def generate_db_schema(input_class_instance):
                 # noinspection PyTypeChecker
                 schema_fields[attr_name] = fields.Nested(nested_db_schema, many=True)
 
-    # DB 环境运行时设定 load_instance 为 True 并配置 sqla_session
     class Meta:
         model = input_db_class
-        load_instance = False
+        load_instance = True if db_sqlalchemy_merge else False
 
     schema_class = type(f"{input_db_class.__name__}Schema", (SQLAlchemyAutoSchema,),
                         {"Meta": Meta, **schema_fields})
@@ -46,18 +46,24 @@ def generate_db_schema(input_class_instance):
     return schema_class
 
 
-def orm_class_to_dict(instance):
-    schema = generate_db_schema(instance)()
+def orm_class_to_dict(instance,
+                      db_sqlalchemy_merge: bool = False):
+    schema = generate_db_schema(instance, db_sqlalchemy_merge)()
     schema_value = schema.dump(instance)
     return schema_value
 
 
-def orm_class_from_dict(cls, data):
-    schema = generate_db_schema(cls())()
+def orm_class_from_dict(cls,
+                        data,
+                        db_sqlalchemy_instance: SQLAlchemy = db,
+                        db_sqlalchemy_merge: bool = False):
+    schema = generate_db_schema(cls(), db_sqlalchemy_merge)()
     schema_object = schema.load(data)
-    # DB 环境运行时设定返回 db.session.merge(schema_object)
-    # merge_schema_object = db.session.merge(schema_object)
-    return schema_object
+
+    if db_sqlalchemy_merge:
+        return db_sqlalchemy_instance.session.merge(schema_object)
+    else:
+        return schema_object
 
 
 def with_prepare_func_json_data(func):
@@ -94,7 +100,9 @@ def prepare_json_data(func, args, kwargs):
     return json_data
 
 
-def serialize_value(value, db_sqlalchemy_instance: SQLAlchemy = db):
+def serialize_value(value,
+                    db_sqlalchemy_instance: SQLAlchemy = db,
+                    db_sqlalchemy_merge: bool = False):
     if value is None:
         pyjson_translator_logging.info("Serializing None value.")
         return value
@@ -120,7 +128,7 @@ def serialize_value(value, db_sqlalchemy_instance: SQLAlchemy = db):
         return {serialize_value(k): serialize_value(v) for k, v in value.items()}
     elif isinstance(value, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Serializing database model: {type(value).__name__}")
-        serialized_model = orm_class_to_dict(value)
+        serialized_model = orm_class_to_dict(value, db_sqlalchemy_merge)
         pyjson_translator_logging.info(f"Serialized db.Model to dict: {serialized_model}")
         return serialized_model
     elif isinstance(value, BaseModel):
@@ -147,7 +155,10 @@ def serialize_value(value, db_sqlalchemy_instance: SQLAlchemy = db):
         raise ValueError(pyjson_translator_fail_message)
 
 
-def deserialize_value(value, expected_type=None, db_sqlalchemy_instance: SQLAlchemy = db):
+def deserialize_value(value,
+                      expected_type=None,
+                      db_sqlalchemy_instance: SQLAlchemy = db,
+                      db_sqlalchemy_merge: bool = False):
     if value is None:
         pyjson_translator_logging.info("Deserializing None value.")
         return value
@@ -173,7 +184,7 @@ def deserialize_value(value, expected_type=None, db_sqlalchemy_instance: SQLAlch
         return {deserialize_value(k, type(k)): deserialize_value(v, type(v)) for k, v in value.items()}
     elif expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Deserializing database model: {expected_type.__name__}")
-        model_instance = orm_class_from_dict(expected_type, value)
+        model_instance = orm_class_from_dict(expected_type, value, db_sqlalchemy_instance, db_sqlalchemy_merge)
         pyjson_translator_logging.info(f"Deserialized db.Model to instance: {model_instance}")
         return model_instance
     elif expected_type and issubclass(expected_type, BaseModel):
@@ -200,4 +211,3 @@ def deserialize_value(value, expected_type=None, db_sqlalchemy_instance: SQLAlch
                                           f"{expected_type.__name__ if expected_type else 'unknown'}")
         pyjson_translator_logging.warning(pyjson_translator_fail_message)
         raise ValueError(pyjson_translator_fail_message)
-
