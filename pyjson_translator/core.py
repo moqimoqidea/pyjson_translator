@@ -54,6 +54,8 @@ def orm_class_from_dict(cls: type,
                         data: any,
                         db_sqlalchemy_instance: SQLAlchemy = db,
                         db_sqlalchemy_merge: bool = False):
+    pre_check_sqlalchemy(db_sqlalchemy_instance, db_sqlalchemy_merge)
+
     schema = generate_db_schema(cls(), db_sqlalchemy_merge)()
     schema_object = schema.load(data)
 
@@ -83,34 +85,16 @@ def with_post_func_data(func):
 
         if return_type is not inspect.Signature.empty and isinstance(return_type, tuple):
             serialized_results = tuple(serialize_value(val) for val in result)
-            deserialized_results = tuple(deserialize_value(val, get_real_return_type(typ))
+            deserialized_results = tuple(deserialize_value(val, typ)
                                          for val, typ in zip(serialized_results, return_type))
             return deserialized_results
         elif return_type is not inspect.Signature.empty:
             serialized_result = serialize_value(result)
-            return deserialize_value(serialized_result, get_real_return_type(return_type))
+            return deserialize_value(serialized_result, return_type)
         else:
             fail_to_translator(f"Unhandled real post_func type {type(return_type).__name__}")
 
     return wrapper
-
-
-def get_real_return_type(return_type: type,
-                         db_sqlalchemy_instance: SQLAlchemy = db):
-    if return_type in (int, float, str, bool, bytes, complex):
-        return return_type
-    if return_type in (list, tuple, set, dict):
-        return return_type
-    origin = get_origin(return_type)
-    if origin in (list, tuple, set, dict):
-        return origin
-    if origin is Union:
-        return get_real_return_type(get_args(return_type)[0])
-    if issubclass(return_type, BaseModel) or issubclass(return_type, db_sqlalchemy_instance.Model):
-        return return_type
-    if hasattr(return_type, '__dict__'):
-        return return_type
-    fail_to_translator(f"Unhandled real return type {type(return_type).__name__}")
 
 
 def prepare_json_data(func, args, kwargs):
@@ -141,6 +125,8 @@ def prepare_json_data(func, args, kwargs):
 def serialize_value(value: any,
                     db_sqlalchemy_instance: SQLAlchemy = db,
                     db_sqlalchemy_merge: bool = False):
+    pre_check_sqlalchemy(db_sqlalchemy_instance, db_sqlalchemy_merge)
+
     if value is None:
         pyjson_translator_logging.info("Serializing None value.")
         return value
@@ -165,9 +151,9 @@ def serialize_value(value: any,
         pyjson_translator_logging.info(f"Serializing dictionary. Keys: {value.keys()}")
         return {serialize_value(k): serialize_value(v) for k, v in value.items()}
     if isinstance(value, db_sqlalchemy_instance.Model):
-        pyjson_translator_logging.info(f"Serializing database model: {type(value).__name__}")
+        pyjson_translator_logging.info(f"Serializing sqlalchemy db.Model: {type(value).__name__}")
         serialized_model = orm_class_to_dict(value, db_sqlalchemy_merge)
-        pyjson_translator_logging.info(f"Serialized db.Model to dict: {serialized_model}")
+        pyjson_translator_logging.info(f"Serialized sqlalchemy db.Model to dict: {serialized_model}")
         return serialized_model
     if isinstance(value, BaseModel):
         pyjson_translator_logging.info(f"Serializing pydantic BaseModel: {type(value).__name__}")
@@ -194,6 +180,8 @@ def deserialize_value(value: any,
                       expected_type: type = None,
                       db_sqlalchemy_instance: SQLAlchemy = db,
                       db_sqlalchemy_merge: bool = False):
+    pre_check_sqlalchemy(db_sqlalchemy_instance, db_sqlalchemy_merge)
+
     if value is None:
         pyjson_translator_logging.info("Deserializing None value.")
         return value
@@ -208,6 +196,7 @@ def deserialize_value(value: any,
         complex_value = complex(value['real'], value['imaginary'])
         pyjson_translator_logging.info(f"Deserialized complex number from dict: {complex_value}")
         return complex_value
+
     if expected_type in (list, tuple):
         pyjson_translator_logging.info(f"Deserializing list or tuple: {value}")
         return [deserialize_value(item, type(item)) for item in value]
@@ -217,10 +206,21 @@ def deserialize_value(value: any,
     if expected_type == dict:
         pyjson_translator_logging.info(f"Deserializing dictionary. Keys: {value.keys()}")
         return {deserialize_value(k, type(k)): deserialize_value(v, type(v)) for k, v in value.items()}
+
+    origin_expected_type = get_origin(expected_type)
+    if origin_expected_type:
+        if origin_expected_type in (list, tuple, set, dict):
+            pyjson_translator_logging.info(f"Deserializing generic type: {origin_expected_type.__name__}")
+            return deserialize_value(value, origin_expected_type)
+        if origin_expected_type is Union:
+            first_origin_expected_type = get_args(origin_expected_type)[0]
+            pyjson_translator_logging.info(f"Deserializing Union type: {first_origin_expected_type.__name__}")
+            return deserialize_value(value, first_origin_expected_type)
+
     if expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
-        pyjson_translator_logging.info(f"Deserializing database model: {expected_type.__name__}")
+        pyjson_translator_logging.info(f"Deserializing sqlalchemy db.Model: {expected_type.__name__}")
         model_instance = orm_class_from_dict(expected_type, value, db_sqlalchemy_instance, db_sqlalchemy_merge)
-        pyjson_translator_logging.info(f"Deserialized db.Model to instance: {model_instance}")
+        pyjson_translator_logging.info(f"Deserialized sqlalchemy db.Model to instance: {model_instance}")
         return model_instance
     if expected_type and issubclass(expected_type, BaseModel):
         pyjson_translator_logging.info(f"Deserializing pydantic BaseModel: {expected_type.__name__}")
@@ -236,7 +236,7 @@ def deserialize_value(value: any,
         else:
             missing_params = [param for param in constructor_params if param not in value]
             fail_to_translator(f"Missing required parameters for initializing "
-                               f"'{exception_class.__name__}': {', '.join(missing_params)}")
+                               f"'{expected_type.__name__}': {', '.join(missing_params)}")
     if expected_type and callable(getattr(expected_type, 'to_dict', None)):
         pyjson_translator_logging.info(f"Deserializing using custom method to_dict for: {expected_type.__name__}")
         return expected_type.to_dict(value)
@@ -249,6 +249,12 @@ def deserialize_value(value: any,
 def fail_to_translator(pyjson_translator_fail_message: str):
     pyjson_translator_logging.warning(pyjson_translator_fail_message)
     raise PyjsonTranslatorException(pyjson_translator_fail_message)
+
+
+def pre_check_sqlalchemy(db_sqlalchemy_instance: SQLAlchemy = None,
+                         db_sqlalchemy_merge: bool = False):
+    if db_sqlalchemy_merge and not db_sqlalchemy_instance:
+        fail_to_translator("db_sqlalchemy_merge is True but no db_sqlalchemy_instance provided.")
 
 
 class PyjsonTranslatorException(Exception):
