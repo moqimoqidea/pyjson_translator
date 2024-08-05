@@ -209,13 +209,21 @@ def deserialize_value(value: any,
 
     origin_expected_type = get_origin(expected_type)
     if origin_expected_type:
-        if origin_expected_type in (list, tuple, set, dict):
-            pyjson_translator_logging.info(f"Deserializing generic type: {origin_expected_type.__name__}")
-            return deserialize_value(value, origin_expected_type)
+        item_type = get_args(expected_type)[0]
+
+        if origin_expected_type in (list, tuple):
+            pyjson_translator_logging.info(f"Deserializing list or tuple: {value}")
+            return [deserialize_value(item, item_type) for item in value]
+        if origin_expected_type == set:
+            pyjson_translator_logging.info(f"Deserializing set: {value}")
+            return set(deserialize_value(item, item_type) for item in value)
         if origin_expected_type is Union:
-            first_origin_expected_type = get_args(origin_expected_type)[0]
-            pyjson_translator_logging.info(f"Deserializing Union type: {first_origin_expected_type.__name__}")
-            return deserialize_value(value, first_origin_expected_type)
+            pyjson_translator_logging.info(f"Deserializing Union type: {item_type.__name__}")
+            return deserialize_value(value, item_type)
+        if origin_expected_type == dict:
+            pyjson_translator_logging.info(f"Deserializing dictionary. Keys: {value.keys()}")
+            key_type, val_type = get_args(expected_type)
+            return {deserialize_value(k, key_type): deserialize_value(v, val_type) for k, v in value.items()}
 
     if expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Deserializing sqlalchemy db.Model: {expected_type.__name__}")

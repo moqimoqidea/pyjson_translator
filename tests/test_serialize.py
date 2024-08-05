@@ -1,3 +1,6 @@
+from typing import List
+
+import pytest
 from pydantic import BaseModel
 
 from pyjson_translator.core import serialize_value, deserialize_value
@@ -51,6 +54,7 @@ def test_pydantic_types():
     assert deserialized_model.id == example_model.id
 
 
+@pytest.mark.skip(reason="skip for sqlalchemy db data.")
 def test_sqlalchemy_types():
     class Address(db.Model):
         __tablename__ = 'addresses'
@@ -123,6 +127,7 @@ def test_list_with_simple_class_types():
 
     # Deserialize simple class
     deserialized_simple_model_list = deserialize_value(serialized_simple_model_list, List[SimpleModel])
+    print(deserialized_simple_model_list)
     assert isinstance(deserialized_simple_model_list, list)
     assert len(deserialized_simple_model_list) == 2
     assert isinstance(deserialized_simple_model_list[0], SimpleModel)

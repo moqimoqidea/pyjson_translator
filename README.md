@@ -99,6 +99,9 @@ deserialized_model = deserialize_value(serialized_model, ExampleModel)
 
 #### SQLAlchemy Models
 
+Note that if you need to deserialize to an object, you need to configure SQLAlchemy db and session,
+which is still dict after deserialization.
+
 ```python
 from pyjson_translator.core import serialize_value, deserialize_value
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
@@ -178,7 +181,7 @@ deserialized_simple_model = deserialize_value(serialized_simple_model, SimpleMod
 #### List with Simple Class
 
 ```python
-from typing import List, get_origin
+from typing import List
 
 from pyjson_translator.core import serialize_value, deserialize_value
 
@@ -200,13 +203,10 @@ simple_model_list = [example_model, example_model2]
 # Serialize a list with simple class
 # [{'simple_id': 1, 'name': 'Example', 'active': True}, {'simple_id': 2, 'name': 'Example', 'active': True}]
 serialized_simple_model_list = serialize_value(simple_model_list)
-print(serialized_simple_model_list)
 
-# 这里应该转为对象
 # Deserialize simple class
-# [{'simple_id': 1, 'name': 'Example', 'active': True}, {'simple_id': 2, 'name': 'Example', 'active': True}]
+# [<SimpleModel simple_id=1, name=Example, active=True>, <SimpleModel simple_id=2, name=Example, active=True>]
 deserialized_simple_model_list = deserialize_value(serialized_simple_model_list, List[SimpleModel])
-print(deserialized_simple_model_list)
 ```
 
 #### More Examples
