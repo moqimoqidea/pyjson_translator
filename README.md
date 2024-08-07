@@ -39,7 +39,7 @@ This helps to quickly diagnose the problem and make adjustments as needed.
 #### Basic Types
 
 ```python
-from pyjson_translator.core import serialize_value, deserialize_value
+from pyjson_translator.serialize import serialize_value, deserialize_value
 
 int_value = 123
 str_value = "hello"
@@ -59,7 +59,7 @@ deserialize_value(serialized_bool, bool)
 #### Complex Types
 
 ```python
-from pyjson_translator.core import serialize_value, deserialize_value
+from pyjson_translator.serialize import serialize_value, deserialize_value
 
 complex_value = 3 + 4j
 
@@ -76,7 +76,7 @@ deserialize_value(serialized_complex, complex)
 
 ```python
 from pydantic import BaseModel
-from pyjson_translator.core import serialize_value, deserialize_value
+from pyjson_translator.serialize import serialize_value, deserialize_value
 
 
 class ExampleModel(BaseModel):
@@ -98,34 +98,29 @@ deserialized_model = deserialize_value(serialized_model, ExampleModel)
 
 #### SQLAlchemy Models
 
-Note that if you need to deserialize to an object, you need to configure SQLAlchemy db and session,
-which is still dict after deserialization.
-
 ```python
-from pyjson_translator.core import serialize_value, deserialize_value
+from pyjson_translator.serialize import serialize_value, deserialize_value
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
 
 
-class Address(db.Model):
-    __tablename__ = 'addresses'
+class AddressClass(db.Model):
+    __tablename__ = 'addresses_table'
     id = db.Column(db.Integer, primary_key=True)
     street = db.Column(db.String(100))
     city = db.Column(db.String(50))
     state = db.Column(db.String(20))
     zip = db.Column(db.String(10))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users_table.id'), nullable=False)
 
-
-class User(db.Model):
-    __tablename__ = 'users'
+class UserClass(db.Model):
+    __tablename__ = 'users_table'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True)
     email = db.Column(db.String(120), unique=True)
-    address = db.relationship("Address", backref="user", lazy='select', passive_deletes="all")
+    address = db.relationship("AddressClass", backref="user", lazy='select', passive_deletes="all")
 
-
-address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
-user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
+address_instance = AddressClass(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
+user_instance = UserClass(id=1, username="john_doe", email="john@example.com", address=[address_instance])
 
 # Serialize SQLAlchemy model
 # {'address': [{'city': 'New York',
@@ -147,13 +142,13 @@ serialized_user = serialize_value(user_instance)
 #  'email': 'john@example.com',
 #  'id': 1,
 #  'username': 'john_doe'}
-deserialized_user = deserialize_value(serialized_user, User)
+deserialized_user = deserialize_value(serialized_user, UserClass)
 ```
 
 #### Simple Classes
 
 ```python
-from pyjson_translator.core import serialize_value, deserialize_value
+from pyjson_translator.serialize import serialize_value, deserialize_value
 
 
 class SimpleModel:
@@ -182,7 +177,7 @@ deserialized_simple_model = deserialize_value(serialized_simple_model, SimpleMod
 ```python
 from typing import List
 
-from pyjson_translator.core import serialize_value, deserialize_value
+from pyjson_translator.serialize import serialize_value, deserialize_value
 
 
 class SimpleModel:

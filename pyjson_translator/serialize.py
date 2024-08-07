@@ -7,18 +7,15 @@ from pydantic import BaseModel
 from .db_sqlalchemy_instance import default_sqlalchemy_instance as db
 from .error_handle import fail_to_translator
 from .logger_setting import pyjson_translator_logging
-from .marshmallow_db_util import (
+from .pydantic_db_util import (
     orm_class_to_dict,
-    orm_class_from_dict,
-    pre_check_sqlalchemy,
+    orm_class_from_dict
 )
 
 
 def serialize_value(value: any,
                     db_sqlalchemy_instance: SQLAlchemy = db,
                     db_sqlalchemy_merge: bool = False):
-    pre_check_sqlalchemy(db_sqlalchemy_instance, db_sqlalchemy_merge)
-
     if value is None:
         pyjson_translator_logging.info("Serializing None value.")
         return value
@@ -72,8 +69,6 @@ def deserialize_value(value: any,
                       expected_type: type = None,
                       db_sqlalchemy_instance: SQLAlchemy = db,
                       db_sqlalchemy_merge: bool = False):
-    pre_check_sqlalchemy(db_sqlalchemy_instance, db_sqlalchemy_merge)
-
     if value is None:
         pyjson_translator_logging.info("Deserializing None value.")
         return value

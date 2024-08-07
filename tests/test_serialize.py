@@ -1,6 +1,5 @@
 from typing import List
 
-import pytest
 from pydantic import BaseModel
 
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
@@ -54,36 +53,33 @@ def test_pydantic_types():
     assert deserialized_model.id == example_model.id
 
 
-@pytest.mark.skip(reason="skip for sqlalchemy db data.")
 def test_sqlalchemy_types():
-    class Address(db.Model):
-        __tablename__ = 'addresses'
+    class AddressClass(db.Model):
+        __tablename__ = 'addresses_table'
         id = db.Column(db.Integer, primary_key=True)
         street = db.Column(db.String(100))
         city = db.Column(db.String(50))
         state = db.Column(db.String(20))
         zip = db.Column(db.String(10))
-        user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+        user_id = db.Column(db.Integer, db.ForeignKey('users_table.id'), nullable=False)
 
-    class User(db.Model):
-        __tablename__ = 'users'
+    class UserClass(db.Model):
+        __tablename__ = 'users_table'
         id = db.Column(db.Integer, primary_key=True)
         username = db.Column(db.String(50), unique=True)
         email = db.Column(db.String(120), unique=True)
-        address = db.relationship("Address", backref="user", lazy='select', passive_deletes="all")
+        address = db.relationship("AddressClass", backref="user", lazy='select', passive_deletes="all")
 
-    address_instance = Address(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
-    user_instance = User(id=1, username="john_doe", email="john@example.com", address=[address_instance])
+    address_instance = AddressClass(id=1, street="123 Main St", city="New York", state="NY", zip="10001", user_id=1)
+    user_instance = UserClass(id=1, username="john_doe", email="john@example.com", address=[address_instance])
 
     # Serialize SQLAlchemy model
     serialized_user = serialize_value(user_instance)
 
     # Deserialize SQLAlchemy model
-    deserialized_user = deserialize_value(serialized_user, User)
-    assert deserialized_user['id'] == user_instance.id
-
-    # fixme: if you need isinstance, you should add parameter with sqlalchemy data.
-    # assert isinstance(deserialized_user, User)
+    deserialized_user = deserialize_value(serialized_user, UserClass)
+    assert deserialized_user.id == user_instance.id
+    assert isinstance(deserialized_user, UserClass)
 
 
 def test_simple_types():
