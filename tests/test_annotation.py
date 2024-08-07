@@ -2,12 +2,12 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from pyjson_translator.core import (
-    serialize_value,
+from pyjson_translator.annotation import (
     with_prepare_func_json_data,
     with_post_func_data
 )
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
+from pyjson_translator.serialize import serialize_value
 
 
 class ExampleModel(BaseModel):

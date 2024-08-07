@@ -3,8 +3,8 @@ from typing import List
 import pytest
 from pydantic import BaseModel
 
-from pyjson_translator.core import serialize_value, deserialize_value
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
+from pyjson_translator.serialize import serialize_value, deserialize_value
 
 
 def test_primitive_types():

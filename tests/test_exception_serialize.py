@@ -1,6 +1,6 @@
 import importlib
 
-from pyjson_translator.core import (
+from pyjson_translator.annotation import (
     with_prepare_func_json_data,
     with_post_func_data
 )
@@ -98,11 +98,11 @@ def test_str_to_exception():
 
 def test_str_and_path_to_exception():
     message = "An error occurred"
-    exception = demo_service.str_and_path_to_exception(message, "tests.test_core_exception.DemoException")
+    exception = demo_service.str_and_path_to_exception(message, "tests.test_exception_serialize.DemoException")
     assert exception.message == message
 
 
 def test_dict_and_path_to_exception():
     exception_dict = {"message": "An error occurred"}
-    exception = demo_service.dict_and_path_to_exception(exception_dict, "tests.test_core_exception.DemoException")
+    exception = demo_service.dict_and_path_to_exception(exception_dict, "tests.test_exception_serialize.DemoException")
     assert exception.message == exception_dict["message"]
