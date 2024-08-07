@@ -14,8 +14,7 @@ from .pydantic_db_util import (
 
 
 def serialize_value(value: any,
-                    db_sqlalchemy_instance: SQLAlchemy = db,
-                    db_sqlalchemy_merge: bool = False):
+                    db_sqlalchemy_instance: SQLAlchemy = db):
     if value is None:
         pyjson_translator_logging.info("Serializing None value.")
         return value
@@ -41,7 +40,7 @@ def serialize_value(value: any,
         return {serialize_value(k): serialize_value(v) for k, v in value.items()}
     if isinstance(value, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Serializing sqlalchemy db.Model: {type(value).__name__}")
-        serialized_model = orm_class_to_dict(value, db_sqlalchemy_merge)
+        serialized_model = orm_class_to_dict(value)
         pyjson_translator_logging.info(f"Serialized sqlalchemy db.Model to dict: {serialized_model}")
         return serialized_model
     if isinstance(value, BaseModel):
@@ -67,8 +66,7 @@ def serialize_value(value: any,
 
 def deserialize_value(value: any,
                       expected_type: type = None,
-                      db_sqlalchemy_instance: SQLAlchemy = db,
-                      db_sqlalchemy_merge: bool = False):
+                      db_sqlalchemy_instance: SQLAlchemy = db):
     if value is None:
         pyjson_translator_logging.info("Deserializing None value.")
         return value
@@ -114,7 +112,7 @@ def deserialize_value(value: any,
 
     if expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
         pyjson_translator_logging.info(f"Deserializing sqlalchemy db.Model: {expected_type.__name__}")
-        model_instance = orm_class_from_dict(expected_type, value, db_sqlalchemy_instance, db_sqlalchemy_merge)
+        model_instance = orm_class_from_dict(expected_type, value)
         pyjson_translator_logging.info(f"Deserialized sqlalchemy db.Model to instance: {model_instance}")
         return model_instance
     if expected_type and issubclass(expected_type, BaseModel):

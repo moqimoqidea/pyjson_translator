@@ -59,7 +59,7 @@ def pydantic_to_sqlalchemy(pydantic_instance):
     sqlalchemy_class = pydantic_instance.__class__._original_class
     instance_dict = {}
 
-    for attr_name in pydantic_instance.__fields__:
+    for attr_name in pydantic_instance.model_fields:
         field_value = getattr(pydantic_instance, attr_name)
         if isinstance(field_value, list) and field_value and isinstance(field_value[0], BaseModel):
             instance_dict[attr_name] = [pydantic_to_sqlalchemy(item) for item in field_value]
@@ -75,16 +75,13 @@ def pydantic_to_sqlalchemy(pydantic_instance):
     return sqlalchemy_instance
 
 
-def orm_class_to_dict(instance: any,
-                      db_sqlalchemy_merge: bool = False):
+def orm_class_to_dict(instance: any):
     instance_dict = convert_instance_to_pydantic(instance).model_dump()
     return instance_dict
 
 
 def orm_class_from_dict(cls: type,
-                        data: any,
-                        db_sqlalchemy_instance: SQLAlchemy = db,
-                        db_sqlalchemy_merge: bool = False):
+                        data: any):
     model_class = generate_db_schema(cls)
     model_instance = model_class(**data)
     original_instance = pydantic_to_sqlalchemy(model_instance)
