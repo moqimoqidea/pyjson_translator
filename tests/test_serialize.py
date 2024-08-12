@@ -1,11 +1,16 @@
+import importlib.util
 from typing import List
 
+import pytest
 from pydantic import BaseModel
 from sqlalchemy import CHAR, TypeDecorator
 from sqlalchemy.dialects.postgresql import UUID
 
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
 from pyjson_translator.serialize import serialize_value, deserialize_value
+
+# Check if marshmallow is installed
+marshmallow_installed = importlib.util.find_spec("marshmallow") is not None
 
 
 def test_primitive_types():
@@ -55,6 +60,7 @@ def test_pydantic_types():
     assert deserialized_model.id == example_model.id
 
 
+@pytest.mark.skipif(marshmallow_installed, reason="marshmallow is installed, skip for sqlalchemy db instance.")
 def test_sqlalchemy_types():
     class AddressClass(db.Model):
         __tablename__ = 'addresses_table'
@@ -132,6 +138,7 @@ def test_list_with_simple_class_types():
     assert deserialized_simple_model_list[0].simple_id == example_model.simple_id
 
 
+@pytest.mark.skipif(marshmallow_installed, reason="marshmallow is installed, skip for sqlalchemy db instance.")
 def test_custom_define_sqlalchemy_column_type():
     class StringUUID(TypeDecorator):
 

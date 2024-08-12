@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from .db_sqlalchemy_instance import default_sqlalchemy_instance as db
 from .error_handle import fail_to_translator
 from .logger_setting import pyjson_translator_logging as logging
-from .pydantic_db_util import (
+from .marshmallow_db_util import (
     orm_class_to_dict,
     orm_class_from_dict
 )

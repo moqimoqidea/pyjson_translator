@@ -12,6 +12,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10"
 flask_sqlalchemy = "^3.1.1"
+marshmallow = "^3.21.3"
+marshmallow_sqlalchemy = "^1.0.0"
 pydantic = "^2.8.2"
 
 [tool.poetry.dev-dependencies]
