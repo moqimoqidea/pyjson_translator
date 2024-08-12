@@ -2,11 +2,11 @@ import logging
 
 # 创建一个自定义的 logger
 pyjson_translator_logging = logging.getLogger('pyjson_translator')
-pyjson_translator_logging.setLevel(logging.INFO)
+pyjson_translator_logging.setLevel(logging.INFO)  # 默认日志级别设为 INFO
 
 # 创建一个控制台处理器并设置默认的日志级别
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.INFO)  # 默认日志级别设为 INFO
 
 # 创建一个格式化器并将其设置到处理器上
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

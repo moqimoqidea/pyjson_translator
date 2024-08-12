@@ -1,8 +1,8 @@
-from .logger_setting import pyjson_translator_logging
+from .logger_setting import pyjson_translator_logging as logging
 
 
 def fail_to_translator(pyjson_translator_fail_message: str):
-    pyjson_translator_logging.warning(pyjson_translator_fail_message)
+    logging.warning(pyjson_translator_fail_message)
     raise PyjsonTranslatorException(pyjson_translator_fail_message)
 
 

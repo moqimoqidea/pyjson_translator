@@ -2,7 +2,7 @@ import functools
 import inspect
 
 from .error_handle import fail_to_translator
-from .logger_setting import pyjson_translator_logging
+from .logger_setting import pyjson_translator_logging as logging
 from .serialize import (
     serialize_value,
     deserialize_value
@@ -51,16 +51,16 @@ def prepare_json_data(func, args, kwargs):
 
     for name, arg_value in bound_args.arguments.items():
         if name == 'self':
-            pyjson_translator_logging.info(f"Skipping 'self' parameter.")
+            logging.debug(f"Skipping 'self' parameter.")
             continue
 
         serialized_value = serialize_value(arg_value)
         json_data[name] = serialized_value
-        pyjson_translator_logging.info(f"Processed parameter '{name}': {serialized_value}")
+        logging.debug(f"Processed parameter '{name}': {serialized_value}")
 
         deserialized_value = deserialize_value(serialized_value, type(arg_value))
         deserialized_data[name] = deserialized_value
-        pyjson_translator_logging.info(f"Deserialized parameter '{name}': {deserialized_value}")
+        logging.debug(f"Deserialized parameter '{name}': {deserialized_value}")
 
-    pyjson_translator_logging.info(f"Final JSON data prepared for sending: {json_data}")
+    logging.debug(f"Final JSON data prepared for sending: {json_data}")
     return json_data
