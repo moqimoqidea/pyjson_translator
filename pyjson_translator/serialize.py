@@ -41,7 +41,7 @@ def serialize_value(value: any,
         return {serialize_value(k): serialize_value(v) for k, v in value.items()}
     if isinstance(value, db_sqlalchemy_instance.Model):
         logging.debug(f"Serializing sqlalchemy db.Model: {type(value).__name__}")
-        serialized_model = orm_class_to_dict(value, db_sqlalchemy_merge)
+        serialized_model = orm_class_to_dict(value, db_sqlalchemy_instance, db_sqlalchemy_merge)
         logging.debug(f"Serialized sqlalchemy db.Model to dict: {serialized_model}")
         return serialized_model
     if isinstance(value, BaseModel):

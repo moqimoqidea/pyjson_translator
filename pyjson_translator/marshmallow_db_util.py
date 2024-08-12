@@ -9,6 +9,7 @@ GLOBAL_DB_SCHEMA_CACHE = {}
 
 
 def generate_db_schema(input_class_instance: any,
+                       db_sqlalchemy_instance: SQLAlchemy = db,
                        db_sqlalchemy_merge: bool = False):
     input_db_class = input_class_instance.__class__
 
@@ -18,7 +19,7 @@ def generate_db_schema(input_class_instance: any,
     def get_nested_schema(relation_class_instance):
         related_model = relation_class_instance.mapper.entity
         related_instance = related_model()
-        return generate_db_schema(related_instance, db_sqlalchemy_merge)
+        return generate_db_schema(related_instance, db_sqlalchemy_instance, db_sqlalchemy_merge)
 
     schema_fields = {}
     for attr_name, relation in input_db_class.__mapper__.relationships.items():
@@ -30,6 +31,7 @@ def generate_db_schema(input_class_instance: any,
     class Meta:
         model = input_db_class
         load_instance = db_sqlalchemy_merge
+        sqla_session = db_sqlalchemy_instance.session
 
     schema_class = type(f"{input_db_class.__name__}Schema", (SQLAlchemyAutoSchema,),
                         {"Meta": Meta, **schema_fields})
@@ -39,8 +41,9 @@ def generate_db_schema(input_class_instance: any,
 
 
 def orm_class_to_dict(instance: any,
+                      db_sqlalchemy_instance: SQLAlchemy = db,
                       db_sqlalchemy_merge: bool = False):
-    schema = generate_db_schema(instance, db_sqlalchemy_merge)()
+    schema = generate_db_schema(instance, db_sqlalchemy_instance, db_sqlalchemy_merge)()
     return schema.dump(instance)
 
 
@@ -50,7 +53,7 @@ def orm_class_from_dict(cls: type,
                         db_sqlalchemy_merge: bool = False):
     pre_check_sqlalchemy(db_sqlalchemy_instance, db_sqlalchemy_merge)
 
-    schema = generate_db_schema(cls(), db_sqlalchemy_merge)()
+    schema = generate_db_schema(cls(), db_sqlalchemy_instance, db_sqlalchemy_merge)()
     schema_object = schema.load(data)
 
     if db_sqlalchemy_merge:
