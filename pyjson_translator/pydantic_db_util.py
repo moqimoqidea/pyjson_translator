@@ -1,9 +1,7 @@
 from typing import List
 
-from flask_sqlalchemy import SQLAlchemy
 from pydantic import BaseModel, create_model, ConfigDict
-
-from .db_sqlalchemy_instance import default_sqlalchemy_instance as db
+from sqlalchemy import TypeDecorator
 
 GLOBAL_DB_SCHEMA_CACHE = {}
 
@@ -15,7 +13,13 @@ def generate_db_schema(sqlalchemy_model):
     # 创建字段字典
     fields = {}
     for column in sqlalchemy_model.__table__.columns:
-        python_type = column.type.python_type
+        try:
+            if isinstance(column.type, TypeDecorator):
+                python_type = column.type.impl.python_type
+            else:
+                python_type = column.type.python_type
+        except NotImplementedError:
+            python_type = str  # Fallback to str if python_type is not implemented
         # noinspection PyUnresolvedReferences
         default = None if column.default is None else column.default.arg
         fields[column.name] = (python_type, default)

@@ -1,6 +1,8 @@
 from typing import List
 
 from pydantic import BaseModel
+from sqlalchemy import CHAR, TypeDecorator
+from sqlalchemy.dialects.postgresql import UUID
 
 from pyjson_translator.db_sqlalchemy_instance import default_sqlalchemy_instance as db
 from pyjson_translator.serialize import serialize_value, deserialize_value
@@ -128,3 +130,48 @@ def test_list_with_simple_class_types():
     assert len(deserialized_simple_model_list) == 2
     assert isinstance(deserialized_simple_model_list[0], SimpleModel)
     assert deserialized_simple_model_list[0].simple_id == example_model.simple_id
+
+
+def test_custom_define_sqlalchemy_column_type():
+    class StringUUID(TypeDecorator):
+
+        impl = CHAR
+        cache_ok = True
+
+        def process_bind_param(self, value, dialect):
+            if value is None:
+                return value
+            elif dialect.name == 'postgresql':
+                return str(value)
+            else:
+                return value.hex
+
+        def load_dialect_impl(self, dialect):
+            if dialect.name == 'postgresql':
+                return dialect.type_descriptor(UUID())
+            else:
+                return dialect.type_descriptor(CHAR(36))
+
+        def process_result_value(self, value, dialect):
+            if value is None:
+                return value
+            return str(value)
+
+    class Account(db.Model):
+        __tablename__ = 'accounts'
+        __table_args__ = (
+            db.PrimaryKeyConstraint('id', name='account_pkey'),
+            db.Index('username_idx', 'username')
+        )
+        id = db.Column(StringUUID, server_default=db.text('uuid_generate_v4()'))
+        username = db.Column(db.String(50), unique=True)
+
+    account_instance = Account(id='123e4567-e89b-12d3-a456-426614174000', username='test_user')
+
+    # Serialize SQLAlchemy model with a custom column type
+    serialized_account = serialize_value(account_instance)
+
+    # Deserialize SQLAlchemy model with a custom column type
+    deserialized_account = deserialize_value(serialized_account, Account)
+    assert deserialized_account.id == account_instance.id
+    assert isinstance(deserialized_account, Account)
