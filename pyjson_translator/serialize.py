@@ -32,13 +32,15 @@ def serialize_value(value: any,
         return complex_dict
     if isinstance(value, (list, tuple)):
         logging.debug(f"Serializing list or tuple: {value}")
-        return [serialize_value(item) for item in value]
+        return [serialize_value(item, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
     if isinstance(value, set):
         logging.debug(f"Serializing set: {value}")
-        return [serialize_value(item) for item in value]
+        return [serialize_value(item, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
     if isinstance(value, dict):
         logging.debug(f"Serializing dictionary. Keys: {value.keys()}")
-        return {serialize_value(k): serialize_value(v) for k, v in value.items()}
+        return {serialize_value(k, db_sqlalchemy_instance, db_sqlalchemy_merge):
+                    serialize_value(v, db_sqlalchemy_instance, db_sqlalchemy_merge)
+                for k, v in value.items()}
     if isinstance(value, db_sqlalchemy_instance.Model):
         logging.debug(f"Serializing sqlalchemy db.Model: {type(value).__name__}")
         serialized_model = orm_class_to_dict(value, db_sqlalchemy_instance, db_sqlalchemy_merge)
@@ -51,7 +53,7 @@ def serialize_value(value: any,
         return model_dict
     if hasattr(value, '__dict__'):
         logging.debug(f"Serializing using __dict__ for: {type(value).__name__}")
-        return {k: serialize_value(v) for k, v in value.__dict__.items()}
+        return {k: serialize_value(v, db_sqlalchemy_instance, db_sqlalchemy_merge) for k, v in value.__dict__.items()}
     if callable(getattr(value, 'to_dict', None)):
         logging.debug(f"Serializing using custom method to_dict for: {type(value).__name__}")
         return value.to_dict()
@@ -61,7 +63,7 @@ def serialize_value(value: any,
     if get_origin(value) is Optional:
         logging.debug(
             f"Encountered an Optional type, deeper serialization might be required for: {value}")
-        return serialize_value(value)
+        return serialize_value(value, db_sqlalchemy_instance, db_sqlalchemy_merge)
     fail_to_translator(f"Unhandled serialize type {type(value).__name__}")
 
 
@@ -86,32 +88,36 @@ def deserialize_value(value: any,
 
     if expected_type in (list, tuple):
         logging.debug(f"Deserializing list or tuple: {value}")
-        return [deserialize_value(item, type(item)) for item in value]
+        return [deserialize_value(item, type(item), db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
     if expected_type == set:
         logging.debug(f"Deserializing set: {value}")
-        return set(deserialize_value(item, type(item)) for item in value)
+        return set(deserialize_value(item, type(item), db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value)
     if expected_type == dict:
         logging.debug(f"Deserializing dictionary. Keys: {value.keys()}")
-        return {deserialize_value(k, type(k)): deserialize_value(v, type(v)) for k, v in value.items()}
-
+        return {
+            deserialize_value(k, type(k), db_sqlalchemy_instance, db_sqlalchemy_merge):
+                deserialize_value(v, type(v), db_sqlalchemy_instance, db_sqlalchemy_merge)
+            for k, v in value.items()}
     origin_expected_type = get_origin(expected_type)
     if origin_expected_type:
         item_type = get_args(expected_type)[0]
 
         if origin_expected_type in (list, tuple):
             logging.debug(f"Deserializing list or tuple: {value}")
-            return [deserialize_value(item, item_type) for item in value]
+            return [deserialize_value(item, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
         if origin_expected_type == set:
             logging.debug(f"Deserializing set: {value}")
-            return set(deserialize_value(item, item_type) for item in value)
+            return set(
+                deserialize_value(item, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value)
         if origin_expected_type is Union:
             logging.debug(f"Deserializing Union type: {item_type.__name__}")
-            return deserialize_value(value, item_type)
+            return deserialize_value(value, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge)
         if origin_expected_type == dict:
             logging.debug(f"Deserializing dictionary. Keys: {value.keys()}")
             key_type, val_type = get_args(expected_type)
-            return {deserialize_value(k, key_type): deserialize_value(v, val_type) for k, v in value.items()}
-
+            return {deserialize_value(k, key_type, db_sqlalchemy_instance, db_sqlalchemy_merge):
+                        deserialize_value(v, val_type, db_sqlalchemy_instance, db_sqlalchemy_merge)
+                    for k, v in value.items()}
     if expected_type and issubclass(expected_type, db_sqlalchemy_instance.Model):
         logging.debug(f"Deserializing sqlalchemy db.Model: {expected_type.__name__}")
         model_instance = orm_class_from_dict(expected_type, value, db_sqlalchemy_instance, db_sqlalchemy_merge)
