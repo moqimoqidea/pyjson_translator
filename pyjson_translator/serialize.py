@@ -1,4 +1,5 @@
 import base64
+import importlib
 from collections.abc import Sequence, Set, Mapping
 from typing import Optional, get_origin, get_args, Union
 
@@ -51,6 +52,11 @@ def serialize_value(value: any,
         logging.debug(f"Serializing pydantic BaseModel: {type(value).__name__}")
         model_dict = value.model_dump()
         logging.debug(f"Serialized BaseModel to dict: {model_dict}")
+        model_dict['_class_data'] = {
+            'module': value.__class__.__module__,
+            'name': value.__class__.__name__,
+            'qualname': value.__class__.__qualname__
+        }
         return model_dict
     if hasattr(value, '__dict__'):
         logging.debug(f"Serializing using __dict__ for: {type(value).__name__}")
@@ -127,7 +133,13 @@ def deserialize_value(value: any,
         return model_instance
     if expected_type and issubclass(expected_type, BaseModel):
         logging.debug(f"Deserializing pydantic BaseModel: {expected_type.__name__}")
-        model_instance = expected_type.model_validate(value)
+
+        real_base_model_class = expected_type
+        class_data = value.pop('_class_data')
+        if '<locals>' not in class_data['qualname']:
+            real_base_model_class = getattr(importlib.import_module(class_data['module']), class_data['name'])
+
+        model_instance = real_base_model_class.model_validate(value)
         logging.debug(f"Deserialized BaseModel to instance: {model_instance}")
         return model_instance
     if expected_type and hasattr(expected_type, '__dict__'):
