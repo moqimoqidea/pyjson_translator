@@ -91,6 +91,9 @@ def deserialize_value(value: any,
     if origin_expected_type:
         item_type = get_args(expected_type)[0]
 
+        if origin_expected_type is Union:
+            logging.debug(f"Deserializing Union type: {item_type.__name__}")
+            return deserialize_value(value, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge)
         if issubclass(origin_expected_type, Sequence):
             logging.debug(f"Deserializing Sequence: {value}")
             return [deserialize_value(item, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
@@ -98,9 +101,6 @@ def deserialize_value(value: any,
             logging.debug(f"Deserializing set: {value}")
             return set(
                 deserialize_value(item, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value)
-        if origin_expected_type is Union:
-            logging.debug(f"Deserializing Union type: {item_type.__name__}")
-            return deserialize_value(value, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge)
         if issubclass(origin_expected_type, Mapping):
             logging.debug(f"Deserializing dictionary. Keys: {value.keys()}")
             key_type, val_type = get_args(expected_type)
