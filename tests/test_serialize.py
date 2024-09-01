@@ -1,4 +1,5 @@
 import importlib.util
+from importlib.util import source_hash
 from typing import List
 
 import pytest
@@ -182,3 +183,9 @@ def test_custom_define_sqlalchemy_column_type():
     deserialized_account = deserialize_value(serialized_account, Account)
     assert deserialized_account.id == account_instance.id
     assert isinstance(deserialized_account, Account)
+
+def test_tuple_types():
+    source_tuple = (1, 2, 3, 4, 5)
+    serialized_source_tuple = serialize_value(source_tuple)
+    target_tuple = deserialize_value(serialized_source_tuple, tuple)
+    assert target_tuple == source_tuple

@@ -32,6 +32,9 @@ def serialize_value(value: any,
         complex_dict = {"real": value.real, "imaginary": value.imag}
         logging.debug(f"Serializing complex number to dict: {complex_dict}")
         return complex_dict
+    if isinstance(value, tuple):
+        logging.debug(f"Serializing tuple: {value}")
+        return [serialize_value(item, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
     if isinstance(value, Sequence):
         logging.debug(f"Serializing Sequence: {value}")
         return [serialize_value(item, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
@@ -100,6 +103,9 @@ def deserialize_value(value: any,
         if origin_expected_type is Union:
             logging.debug(f"Deserializing Union type: {item_type.__name__}")
             return deserialize_value(value, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge)
+        if issubclass(origin_expected_type, tuple):
+            logging.debug(f"Deserializing tuple: {value}")
+            return tuple([deserialize_value(item, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value])
         if issubclass(origin_expected_type, Sequence):
             logging.debug(f"Deserializing Sequence: {value}")
             return [deserialize_value(item, item_type, db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
@@ -114,6 +120,9 @@ def deserialize_value(value: any,
                         deserialize_value(v, val_type, db_sqlalchemy_instance, db_sqlalchemy_merge)
                     for k, v in value.items()}
 
+    if issubclass(expected_type, tuple):
+        logging.debug(f"Deserializing tuple: {value}")
+        return tuple([deserialize_value(item, type(item), db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value])
     if issubclass(expected_type, Sequence):
         logging.debug(f"Deserializing Sequence: {value}")
         return [deserialize_value(item, type(item), db_sqlalchemy_instance, db_sqlalchemy_merge) for item in value]
